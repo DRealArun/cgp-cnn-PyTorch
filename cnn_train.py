@@ -228,7 +228,7 @@ class CNN_train():
                 optimizer.step()
                 _, predicted = torch.max(output.data, 1)
                 total += label_.size(0)
-                correct += predicted.eq(label_.data).cpu().sum()
+                correct += predicted.eq(label_.data).cpu().sum().item()
                 ite += 1
             print('Train set : Average loss: {:.4f}'.format(train_loss))
             print('Train set : Average Acc : {:.4f}'.format(correct/total))
@@ -296,7 +296,7 @@ class CNN_train():
             test_loss += loss.data[0]
             _, predicted = torch.max(output.data, 1)
             total += label_.size(0)
-            correct += predicted.eq(label_.data).cpu().sum()
+            correct += predicted.eq(label_.data).cpu().sum().item()
             ite += 1
         print('Test set : Average loss: {:.4f}'.format(test_loss))
         print('Test set : (%d/%d)' % (correct, total))
