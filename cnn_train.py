@@ -95,52 +95,84 @@ def init_weights(net, init_type='normal'):
     else:
         raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
 
+CIFAR_CLASSES = 10
+MNIST_CLASSES = 10
+FASHION_CLASSES = 10
+EMNIST_CLASSES = 47
+SVHN_CLASSES = 10
+STL10_CLASSES = 10
+DEVANAGARI_CLASSES = 46 
 
+class_dict = {'cifar10': CIFAR_CLASSES,
+              'mnist' : MNIST_CLASSES,
+              'emnist': EMNIST_CLASSES,
+              'fashion': FASHION_CLASSES,
+              'svhn': SVHN_CLASSES,
+              'stl10': STL10_CLASSES,
+              'devanagari' : DEVANAGARI_CLASSES}
+
+inp_channel_dict = {'cifar10': 3,
+                    'mnist' : 1,
+                    'emnist': 1,
+                    'fashion': 1,
+                    'svhn': 3,
+                    'stl10': 3,
+                    'devanagari' : 1}
+
+img_sizes = {'cifar10': 32,
+            'mnist' : 28,
+            'emnist': 28,
+            'fashion': 28,
+            'svhn': 32,
+            'stl10': 96,
+            'devanagari' : 32}
 
 # __init__: load dataset
 # __call__: training the CNN defined by CGP list
 class CNN_train():
-    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128):
+    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128, datapath='./'):
         # dataset_name: name of data set ('bsds'(color) or 'bsds_gray')
         # validation: [True]  model train/validation mode
         #             [False] model test mode for final evaluation of the evolved model
         #                     (raining data : all training data, test data : all test data)
         # verbose: flag of display
         self.verbose = verbose
-        self.imgSize = imgSize
+        self.imgSize = img_sizes[dataset_name]
         self.validation = validation
         self.batchsize = batchsize
         self.dataset_name = dataset_name
+        self.datapath = datapath
 
         # load dataset
-        if dataset_name == 'cifar10' or dataset_name == 'mnist':
-            if dataset_name == 'cifar10':
-                self.n_class = 10
-                self.channel = 3
-                if self.validation:
-                    self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir='./', batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True)
-                    # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
-                else:
-                    train_dataset = dset.CIFAR10(root='./', train=True, download=True,
-                            transform=transforms.Compose([
-                                transforms.RandomHorizontalFlip(),
-                                transforms.Scale(self.imgSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-                            ]))
-                    test_dataset = dset.CIFAR10(root='./', train=False, download=True,
-                            transform=transforms.Compose([
-                                transforms.Scale(self.imgSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-                            ]))
-                    self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-                    self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-            print('train num    ', len(self.dataloader.dataset))
-            # print('test num     ', len(self.test_dataloader.dataset))
+        # if dataset_name == 'cifar10' or dataset_name == 'mnist':
+        #     if dataset_name == 'cifar10':
+        self.n_class = class_dict[dataset_name]
+        self.channel = inp_channel_dict[dataset_name]
+        if self.validation:
+            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset_name)
+            # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
         else:
-            print('\tInvalid input dataset name at CNN_train()')
-            exit(1)
+            # train_dataset = dset.CIFAR10(root='./', train=True, download=True,
+            #         transform=transforms.Compose([
+            #             transforms.RandomHorizontalFlip(),
+            #             transforms.Scale(self.imgSize),
+            #             transforms.ToTensor(),
+            #             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            #         ]))
+            # test_dataset = dset.CIFAR10(root='./', train=False, download=True,
+            #         transform=transforms.Compose([
+            #             transforms.Scale(self.imgSize),
+            #             transforms.ToTensor(),
+            #             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            #         ]))
+            # self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
+            # self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
+            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset_name)
+        print('train num    ', len(self.dataloader.dataset))
+            # print('test num     ', len(self.test_dataloader.dataset))
+        # else:
+        #     print('\tInvalid input dataset name at CNN_train()')
+        #     exit(1)
 
     def __call__(self, cgp, gpuID, epoch_num=200, out_model='mymodel.model'):
         if self.verbose:
