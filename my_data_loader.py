@@ -8,8 +8,11 @@ import numpy as np
 
 from utils import plot_images
 from torchvision import datasets
+import torchvision.datasets as dset
 from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler
+import os
+from PIL import Image
 
 
 def get_data_transforms(dataset, augment=True, scale=False):
@@ -27,7 +30,7 @@ def get_data_transforms(dataset, augment=True, scale=False):
     if dataset == 'stl10':
         return _data_transforms_stl10(augment, scale)
     if dataset == 'devanagari':
-        return _data_transforms_devanagari(augment)
+        return _data_transforms_devanagari(augment, scale)
     assert False, "Cannot get Transform for dataset"
 
 # Transform defined for cifar-10
@@ -371,7 +374,7 @@ def get_train_valid_loader(data_dir,
     #         transforms.ToTensor(),
     #         normalize,
     #     ])
-    train_transform, valid_transform = get_data_transforms(augment, scale=False)
+    train_transform, valid_transform = get_data_transforms(dataset, augment, scale=False)
 
     # # load the dataset
     # train_dataset = datasets.CIFAR10(
@@ -415,12 +418,12 @@ def get_train_valid_loader(data_dir,
         shuffle = True
         train_dir = os.path.join(data_dir, "DevanagariHandwrittenCharacterDataset", "Train")
         test_dir = os.path.join(data_dir, "DevanagariHandwrittenCharacterDataset", "Test")
-        def grey_pil_loader(path):
-          # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
-          with open(path, 'rb') as f:
-              img = Image.open(f)
-              img = img.convert('L')
-              return img
+        # def grey_pil_loader(path):
+        #   # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+        #   with open(path, 'rb') as f:
+        #       img = Image.open(f)
+        #       img = img.convert('L')
+        #       return img
         # Ensure dataset is present in the directory args.data. Does not support auto download
         train_dataset = dset.ImageFolder(root=train_dir, transform=train_transform, loader = grey_pil_loader)
         valid_dataset = dset.ImageFolder(root=test_dir, transform=valid_transform, loader = grey_pil_loader)
@@ -464,6 +467,12 @@ def get_train_valid_loader(data_dir,
 
     return (train_loader, valid_loader)
 
+def grey_pil_loader(path):
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, 'rb') as f:
+      img = Image.open(f)
+      img = img.convert('L')
+      return img
 
 def get_train_test_loader(data_dir,
                            batch_size,
@@ -525,7 +534,7 @@ def get_train_test_loader(data_dir,
     #         transforms.ToTensor(),
     #         normalize,
     #     ])
-    train_transform, test_transform = get_data_transforms(augment=False, scale=True)
+    train_transform, test_transform = get_data_transforms(dataset, augment=False, scale=True)
 
     # # load the dataset
     # train_dataset = datasets.CIFAR10(
@@ -538,6 +547,7 @@ def get_train_test_loader(data_dir,
     #     download=True, transform=valid_transform,
     # )
     ##
+    print("Dataset",dataset)
 
     if dataset == 'cifar10':
         print("Using CIFAR10")
@@ -591,7 +601,7 @@ def get_test_loader(data_dir,
                     batch_size,
                     shuffle=True,
                     num_workers=4,
-                    pin_memory=False
+                    pin_memory=False,
                     dataset_type='cifar10'):
     """
     Utility function for loading and returning a multi-process

@@ -142,14 +142,14 @@ class CNN_train():
         self.batchsize = batchsize
         self.dataset_name = dataset_name
         self.datapath = datapath
-
+        print("Dataset details",self.datapath,self.dataset_name,self.batchsize)
         # load dataset
         # if dataset_name == 'cifar10' or dataset_name == 'mnist':
         #     if dataset_name == 'cifar10':
         self.n_class = class_dict[dataset_name]
         self.channel = inp_channel_dict[dataset_name]
         if self.validation:
-            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset_name)
+            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset=dataset_name)
             # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
         else:
             # train_dataset = dset.CIFAR10(root='./', train=True, download=True,
@@ -167,7 +167,7 @@ class CNN_train():
             #         ]))
             # self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
             # self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset_name)
+            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset=dataset_name)
         print('train num    ', len(self.dataloader.dataset))
             # print('test num     ', len(self.test_dataloader.dataset))
         # else:
@@ -207,7 +207,7 @@ class CNN_train():
             for module in model.children():
                 module.train(True)
             for _, (data, target) in enumerate(self.dataloader):
-                if self.dataset_name == 'mnist':
+                if self.dataset_name == 'mnist' or self.dataset_name == 'fashion' or self.dataset_name == 'emnist' or self.dataset_name == 'devanagari':
                     data = data[:,0:1,:,:] # for gray scale images
                 data = data.cuda(gpuID)
                 target = target.cuda(gpuID)
