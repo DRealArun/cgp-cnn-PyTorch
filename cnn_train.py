@@ -18,9 +18,9 @@ from torch.autograd import Variable
 import random
 from skimage.measure import compare_psnr
 import os
-
+import sys
 from cnn_model import CGP2CNN
-from my_data_loader import get_train_valid_loader, get_test_loader
+from my_data_loader import get_train_valid_loader, get_test_loader, get_train_test_loader
 
 
 def weights_init(m):
@@ -130,7 +130,7 @@ img_sizes = {'cifar10': 32,
 # __init__: load dataset
 # __call__: training the CNN defined by CGP list
 class CNN_train():
-    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128, datapath='./'):
+    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128, datapath='./', seed=2018):
         # dataset_name: name of data set ('bsds'(color) or 'bsds_gray')
         # validation: [True]  model train/validation mode
         #             [False] model test mode for final evaluation of the evolved model
@@ -142,6 +142,7 @@ class CNN_train():
         self.batchsize = batchsize
         self.dataset_name = dataset_name
         self.datapath = datapath
+        self.seed = seed
         print("Dataset details",self.datapath,self.dataset_name,self.batchsize)
         # load dataset
         # if dataset_name == 'cifar10' or dataset_name == 'mnist':
@@ -149,7 +150,7 @@ class CNN_train():
         self.n_class = class_dict[dataset_name]
         self.channel = inp_channel_dict[dataset_name]
         if self.validation:
-            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset=dataset_name)
+            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=self.seed, num_workers=1, pin_memory=True, dataset=dataset_name)
             # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
         else:
             # train_dataset = dset.CIFAR10(root='./', train=True, download=True,
@@ -167,8 +168,9 @@ class CNN_train():
             #         ]))
             # self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
             # self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True, dataset=dataset_name)
+            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=self.seed, num_workers=1, pin_memory=True, dataset=dataset_name)
         print('train num    ', len(self.dataloader.dataset))
+        print('test num    ', len(self.test_dataloader.dataset), self.validation)
             # print('test num     ', len(self.test_dataloader.dataset))
         # else:
         #     print('\tInvalid input dataset name at CNN_train()')
@@ -234,6 +236,7 @@ class CNN_train():
             print('Train set : Average Acc : {:.4f}'.format(correct/total))
             print('time ', time.time()-start_time)
             if self.validation:
+                #print("Checked validation")
                 if epoch == 30:
                     for param_group in optimizer.param_groups:
                         tmp = param_group['lr']
@@ -243,7 +246,10 @@ class CNN_train():
                 if epoch == epoch_num:
                     for module in model.children():
                         module.train(False)
+                    #print("CAlling validation")
                     t_loss = self.__test_per_std(model, criterion, gpuID, input, label)
+                    #print("Tloss",t_loss)
+                    sys.stdout.flush()
             else:
                 if epoch == 5:
                     for param_group in optimizer.param_groups:
@@ -268,7 +274,8 @@ class CNN_train():
                     for param_group in optimizer.param_groups:
                         param_group['lr'] = tmp
         # save the model
-        torch.save(model.state_dict(), './model_%d.pth' % int(gpuID))
+        #torch.save(model.state_dict(), './model_%d.pth' % int(gpuID))
+        torch.save(model.state_dict(), os.path.join('./',str(self.dataset_name)+"_"+str(self.seed),('model_%d.pth' % int(gpuID))))
         return t_loss
 
     # For validation/test
@@ -277,8 +284,10 @@ class CNN_train():
         total = 0
         correct = 0
         ite = 0
+        #print("Validation Called", len(self.test_dataloader.dataset))
         for _, (data, target) in enumerate(self.test_dataloader):
-            if self.dataset_name == 'mnsit':
+            #print("Inside Validation loop")
+            if self.dataset_name == 'mnist' or self.dataset_name == 'fashion' or self.dataset_name == 'emnist' or self.dataset_name == 'devanagari':
                 data = data[:,0:1,:,:]
             data = data.cuda(gpuID)
             target = target.cuda(gpuID)
@@ -289,6 +298,7 @@ class CNN_train():
             try:
                 output = model(input_, None)
             except:
+                #print("Returning 0")
                 import traceback
                 traceback.print_exc()
                 return 0.
@@ -298,8 +308,10 @@ class CNN_train():
             total += label_.size(0)
             correct += predicted.eq(label_.data).cpu().sum().item()
             ite += 1
+        
+        #print("Reached to the end")
         print('Test set : Average loss: {:.4f}'.format(test_loss))
         print('Test set : (%d/%d)' % (correct, total))
         print('Test set : Average Acc : {:.4f}'.format(correct/total))
-
+        sys.stdout.flush()
         return (correct/total)

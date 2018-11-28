@@ -432,16 +432,17 @@ def get_train_valid_loader(data_dir,
 
     num_train = len(train_dataset)
     indices = list(range(num_train))
-    split = int(np.floor(valid_size * num_train))
+    split = int(np.ceil(valid_size * num_train))
     print("Total Training size",num_train)
-    print("Training set size",split)
-    print("Validation set size",num_train-split)
+    print("Training set size",num_train-split)
+    print("Validation set size",split)
 
     if shuffle:
         np.random.seed(random_seed)
         np.random.shuffle(indices)
 
     train_idx, valid_idx = indices[split:], indices[:split]
+    print("Size of indices",np.shape(train_idx),np.shape(valid_idx))
     train_sampler = SubsetRandomSampler(train_idx)
     valid_sampler = SubsetRandomSampler(valid_idx)
 
@@ -591,8 +592,8 @@ def get_train_test_loader(data_dir,
     else:
         assert False, "Cannot get training queue for dataset"
 
-    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batchsize, shuffle=True, num_workers=int(2))
-    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batchsize, shuffle=True, num_workers=int(2))
+    dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=int(2))
+    test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=True, num_workers=int(2))
 
     return (dataloader, test_dataloader)
 
