@@ -417,7 +417,7 @@ def get_train_valid_loader(data_dir,
         print("Using DEVANAGARI")
         shuffle = True
         train_dir = os.path.join(data_dir, "DevanagariHandwrittenCharacterDataset", "Train")
-        test_dir = os.path.join(data_dir, "DevanagariHandwrittenCharacterDataset", "Test")
+        test_dir = os.path.join(data_dir, "DevanagariHandwrittenCharacterDataset", "Train")
         # def grey_pil_loader(path):
         #   # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
         #   with open(path, 'rb') as f:
