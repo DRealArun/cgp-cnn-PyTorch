@@ -64,9 +64,9 @@ if __name__ == '__main__':
         cgp.load_log(list(data.tail(1).values.flatten().astype(int)))  # Read the log at final generation
         print(cgp._log_data(net_info_type='active_only', start_time=0))
         # Retraining the network
-        temp = CNN_train(args.dataset, validation=False, verbose=True, batchsize=args.batchsize, seed=args.seed)
+        temp = CNN_train(args.dataset, validation=False, verbose=True, imgSize=img_sizes[args.dataset], batchsize=args.batchsize, datapath=args.datapath, seed=args.seed)
         file_path = os.path.join('./'+str(args.dataset)+"_"+str(args.seed), 'retrained_net.model')
-        acc = temp(cgp.pop[0].active_net_list(), 0, epoch_num=500, out_model=file_path)
+        acc = temp(cgp.pop[0].active_net_list(), 0, epoch_num=200, out_model=file_path)
         print(acc)
 
         # # otherwise (in the case where we do not have a log file.)

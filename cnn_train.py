@@ -17,6 +17,7 @@ import torchvision.utils as vutils
 from torch.autograd import Variable
 import random
 from skimage.measure import compare_psnr
+from sklearn.metrics import confusion_matrix
 import os
 import sys
 from cnn_model import CGP2CNN
@@ -251,41 +252,44 @@ class CNN_train():
                     #print("Tloss",t_loss)
                     sys.stdout.flush()
             else:
-                if epoch == 5:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 10
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
+                flag = 40
+                #if epoch == 5:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 10
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
                 if epoch % 10 == 0:
                     for module in model.children():
                         module.train(False)
-                    t_loss = self.__test_per_std(model, criterion, gpuID, input, label)
-                if epoch == 250:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 0.1
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
-                if epoch == 375:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 0.1
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
+                    t_loss = self.__test_per_std(model, criterion, gpuID, input, label, True)
+                #if epoch == 250:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 0.1
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
+                #if epoch == 375:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 0.1
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
         # save the model
         #torch.save(model.state_dict(), './model_%d.pth' % int(gpuID))
-        torch.save(model.state_dict(), os.path.join('./',str(self.dataset_name)+"_"+str(self.seed),('model_%d.pth' % int(gpuID))))
+        torch.save(model.state_dict(), os.path.join('./',str(self.dataset_name)+"_"+str(self.seed),('model_%d.pth' % int(flag))))
         return t_loss
 
     # For validation/test
-    def __test_per_std(self, model, criterion, gpuID, input, label):
+    def __test_per_std(self, model, criterion, gpuID, input, label, verbose=False):
         test_loss = 0
         total = 0
         correct = 0
         ite = 0
+        predicted_labels = []
+        true_labels = []
         #print("Validation Called", len(self.test_dataloader.dataset))
-        for _, (data, target) in enumerate(self.test_dataloader):
+        for _index , (data, target) in enumerate(self.test_dataloader):
             #print("Inside Validation loop")
             if self.dataset_name == 'mnist' or self.dataset_name == 'fashion' or self.dataset_name == 'emnist' or self.dataset_name == 'devanagari':
                 data = data[:,0:1,:,:]
@@ -296,7 +300,10 @@ class CNN_train():
             label.resize_as_(target).copy_(target)
             label_ = Variable(label)
             try:
+                start_time = time.time()
                 output = model(input_, None)
+                if verbose :
+                    print("Batch index", _index, "time duration",time.time()-start_time) 
             except:
                 #print("Returning 0")
                 import traceback
@@ -305,6 +312,8 @@ class CNN_train():
             loss = criterion(output, label_)
             test_loss += loss.data[0]
             _, predicted = torch.max(output.data, 1)
+            predicted_labels.extend(predicted.tolist())
+            true_labels.extend(label_.data.tolist())
             total += label_.size(0)
             correct += predicted.eq(label_.data).cpu().sum().item()
             ite += 1
@@ -313,5 +322,12 @@ class CNN_train():
         print('Test set : Average loss: {:.4f}'.format(test_loss))
         print('Test set : (%d/%d)' % (correct, total))
         print('Test set : Average Acc : {:.4f}'.format(correct/total))
+        #print("Values", predicted_labels[0:5], true_labels[0:5])
+        if verbose:
+            print("\nSize of predicted labels and true labels", np.shape(predicted_labels), np.shape(true_labels))
+            print("Confusion matrix is :\n")
+            cm = confusion_matrix(true_labels, predicted_labels)
+            for i in range(np.shape(cm)[0]):
+                print(cm[i,:])
         sys.stdout.flush()
         return (correct/total)

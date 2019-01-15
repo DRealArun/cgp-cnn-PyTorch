@@ -6,6 +6,7 @@ import time
 import numpy as np
 import math
 import os
+import sys
 
 # gene[f][c] f:function type, c:connection (nodeID)
 class Individual(object):
@@ -308,7 +309,11 @@ class CGP(object):
                 evaluations = self._evaluation(self.pop[1:], eval_flag=eval_flag)
                 best_arg = evaluations.argmax()
                 # save
-                f = open(os.path.join(log_dir, 'arch_child.txt'), 'a')
+                file_path = os.path.join(log_dir, 'arch_child.txt')
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #f = open(os.path.join(log_dir, 'arch_child.txt'), 'a+')
+                f = open(file_path, mode)
                 writer_f = csv.writer(f, lineterminator='\n')
                 for c in range(1 + self.lam):
                     writer_c.writerow(self._log_data_children(net_info_type='full', start_time=start_time, pop=self.pop[c]))
@@ -322,11 +327,20 @@ class CGP(object):
 
                 # display and save log
                 print(self._log_data(net_info_type='active_only', start_time=start_time))
-                fw = open(os.path.join(log_dir, log_file) , 'a')
+                file_path = os.path.join(log_dir, log_file)
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #fw = open(os.path.join(log_dir, log_file) , 'a+')
+                fw = open(file_path, mode)
                 writer = csv.writer(fw, lineterminator='\n')
                 writer.writerow(self._log_data(net_info_type='full', start_time=start_time))
-                fa = open(os.path.join(log_dir, 'arch.txt'), 'a')
+                file_path = os.path.join(log_dir, 'arch.txt')
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #fa = open(os.path.join(log_dir, 'arch.txt'), 'a+')
+                fa = open(file_path, mode)
                 writer_a = csv.writer(fa, lineterminator='\n')
                 writer_a.writerow(self._log_data(net_info_type='active_only', start_time=start_time))
                 fw.close()
                 fa.close()
+                sys.stdout.flush()
