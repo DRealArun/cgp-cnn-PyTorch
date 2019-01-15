@@ -5,6 +5,8 @@ import csv
 import time
 import numpy as np
 import math
+import os
+import sys
 
 # gene[f][c] f:function type, c:connection (nodeID)
 class Individual(object):
@@ -271,8 +273,8 @@ class CGP(object):
     #     - Generate lambda individuals in which at least one active node changes (i.e., forced mutation)
     #     - Mutate the best individual with neutral mutation (unchanging the active nodes)
     #         if the best individual is not updated.
-    def modified_evolution(self, max_eval=100, mutation_rate=0.01, log_file='./log.txt', arch_file='./arch.txt'):
-        with open('child.txt', 'w') as fw_c :
+    def modified_evolution(self, max_eval=100, mutation_rate=0.01, log_file='log.txt', arch_file='arch.txt', log_dir='./'):
+        with open(os.path.join(log_dir, 'child.txt'), 'w') as fw_c :
             writer_c = csv.writer(fw_c, lineterminator='\n')
             start_time = time.time()
             eval_flag = np.empty(self.lam)
@@ -307,7 +309,11 @@ class CGP(object):
                 evaluations = self._evaluation(self.pop[1:], eval_flag=eval_flag)
                 best_arg = evaluations.argmax()
                 # save
-                f = open('arch_child.txt', 'a')
+                file_path = os.path.join(log_dir, 'arch_child.txt')
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #f = open(os.path.join(log_dir, 'arch_child.txt'), 'a+')
+                f = open(file_path, mode)
                 writer_f = csv.writer(f, lineterminator='\n')
                 for c in range(1 + self.lam):
                     writer_c.writerow(self._log_data_children(net_info_type='full', start_time=start_time, pop=self.pop[c]))
@@ -321,11 +327,20 @@ class CGP(object):
 
                 # display and save log
                 print(self._log_data(net_info_type='active_only', start_time=start_time))
-                fw = open(log_file, 'a')
+                file_path = os.path.join(log_dir, log_file)
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #fw = open(os.path.join(log_dir, log_file) , 'a+')
+                fw = open(file_path, mode)
                 writer = csv.writer(fw, lineterminator='\n')
                 writer.writerow(self._log_data(net_info_type='full', start_time=start_time))
-                fa = open('arch.txt', 'a')
+                file_path = os.path.join(log_dir, 'arch.txt')
+                mode = 'a' if os.path.exists(file_path) else 'w'
+                print("File name ",file_path,"mode ",mode)
+                #fa = open(os.path.join(log_dir, 'arch.txt'), 'a+')
+                fa = open(file_path, mode)
                 writer_a = csv.writer(fa, lineterminator='\n')
                 writer_a.writerow(self._log_data(net_info_type='active_only', start_time=start_time))
                 fw.close()
                 fa.close()
+                sys.stdout.flush()

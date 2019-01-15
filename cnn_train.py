@@ -17,10 +17,11 @@ import torchvision.utils as vutils
 from torch.autograd import Variable
 import random
 from skimage.measure import compare_psnr
+from sklearn.metrics import confusion_matrix
 import os
-
+import sys
 from cnn_model import CGP2CNN
-from my_data_loader import get_train_valid_loader, get_test_loader
+from my_data_loader import get_train_valid_loader, get_test_loader, get_train_test_loader
 
 
 def weights_init(m):
@@ -95,52 +96,86 @@ def init_weights(net, init_type='normal'):
     else:
         raise NotImplementedError('initialization method [%s] is not implemented' % init_type)
 
+CIFAR_CLASSES = 10
+MNIST_CLASSES = 10
+FASHION_CLASSES = 10
+EMNIST_CLASSES = 47
+SVHN_CLASSES = 10
+STL10_CLASSES = 10
+DEVANAGARI_CLASSES = 46 
 
+class_dict = {'cifar10': CIFAR_CLASSES,
+              'mnist' : MNIST_CLASSES,
+              'emnist': EMNIST_CLASSES,
+              'fashion': FASHION_CLASSES,
+              'svhn': SVHN_CLASSES,
+              'stl10': STL10_CLASSES,
+              'devanagari' : DEVANAGARI_CLASSES}
+
+inp_channel_dict = {'cifar10': 3,
+                    'mnist' : 1,
+                    'emnist': 1,
+                    'fashion': 1,
+                    'svhn': 3,
+                    'stl10': 3,
+                    'devanagari' : 1}
+
+img_sizes = {'cifar10': 32,
+            'mnist' : 28,
+            'emnist': 28,
+            'fashion': 28,
+            'svhn': 32,
+            'stl10': 96,
+            'devanagari' : 32}
 
 # __init__: load dataset
 # __call__: training the CNN defined by CGP list
 class CNN_train():
-    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128):
+    def __init__(self, dataset_name, validation=True, verbose=True, imgSize=32, batchsize=128, datapath='./', seed=2018):
         # dataset_name: name of data set ('bsds'(color) or 'bsds_gray')
         # validation: [True]  model train/validation mode
         #             [False] model test mode for final evaluation of the evolved model
         #                     (raining data : all training data, test data : all test data)
         # verbose: flag of display
         self.verbose = verbose
-        self.imgSize = imgSize
+        self.imgSize = img_sizes[dataset_name]
         self.validation = validation
         self.batchsize = batchsize
         self.dataset_name = dataset_name
-
+        self.datapath = datapath
+        self.seed = seed
+        print("Dataset details",self.datapath,self.dataset_name,self.batchsize)
         # load dataset
-        if dataset_name == 'cifar10' or dataset_name == 'mnist':
-            if dataset_name == 'cifar10':
-                self.n_class = 10
-                self.channel = 3
-                if self.validation:
-                    self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir='./', batch_size=self.batchsize, augment=True, random_seed=2018, num_workers=1, pin_memory=True)
-                    # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
-                else:
-                    train_dataset = dset.CIFAR10(root='./', train=True, download=True,
-                            transform=transforms.Compose([
-                                transforms.RandomHorizontalFlip(),
-                                transforms.Scale(self.imgSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-                            ]))
-                    test_dataset = dset.CIFAR10(root='./', train=False, download=True,
-                            transform=transforms.Compose([
-                                transforms.Scale(self.imgSize),
-                                transforms.ToTensor(),
-                                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
-                            ]))
-                    self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-                    self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
-            print('train num    ', len(self.dataloader.dataset))
-            # print('test num     ', len(self.test_dataloader.dataset))
+        # if dataset_name == 'cifar10' or dataset_name == 'mnist':
+        #     if dataset_name == 'cifar10':
+        self.n_class = class_dict[dataset_name]
+        self.channel = inp_channel_dict[dataset_name]
+        if self.validation:
+            self.dataloader, self.test_dataloader = get_train_valid_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=self.seed, num_workers=1, pin_memory=True, dataset=dataset_name)
+            # self.dataloader, self.test_dataloader = loaders[0], loaders[1]
         else:
-            print('\tInvalid input dataset name at CNN_train()')
-            exit(1)
+            # train_dataset = dset.CIFAR10(root='./', train=True, download=True,
+            #         transform=transforms.Compose([
+            #             transforms.RandomHorizontalFlip(),
+            #             transforms.Scale(self.imgSize),
+            #             transforms.ToTensor(),
+            #             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            #         ]))
+            # test_dataset = dset.CIFAR10(root='./', train=False, download=True,
+            #         transform=transforms.Compose([
+            #             transforms.Scale(self.imgSize),
+            #             transforms.ToTensor(),
+            #             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+            #         ]))
+            # self.dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
+            # self.test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=self.batchsize, shuffle=True, num_workers=int(2))
+            self.dataloader, self.test_dataloader = get_train_test_loader(data_dir=self.datapath, batch_size=self.batchsize, augment=True, random_seed=self.seed, num_workers=1, pin_memory=True, dataset=dataset_name)
+        print('train num    ', len(self.dataloader.dataset))
+        print('test num    ', len(self.test_dataloader.dataset), self.validation)
+            # print('test num     ', len(self.test_dataloader.dataset))
+        # else:
+        #     print('\tInvalid input dataset name at CNN_train()')
+        #     exit(1)
 
     def __call__(self, cgp, gpuID, epoch_num=200, out_model='mymodel.model'):
         if self.verbose:
@@ -175,7 +210,7 @@ class CNN_train():
             for module in model.children():
                 module.train(True)
             for _, (data, target) in enumerate(self.dataloader):
-                if self.dataset_name == 'mnist':
+                if self.dataset_name == 'mnist' or self.dataset_name == 'fashion' or self.dataset_name == 'emnist' or self.dataset_name == 'devanagari':
                     data = data[:,0:1,:,:] # for gray scale images
                 data = data.cuda(gpuID)
                 target = target.cuda(gpuID)
@@ -196,12 +231,13 @@ class CNN_train():
                 optimizer.step()
                 _, predicted = torch.max(output.data, 1)
                 total += label_.size(0)
-                correct += predicted.eq(label_.data).cpu().sum()
+                correct += predicted.eq(label_.data).cpu().sum().item()
                 ite += 1
             print('Train set : Average loss: {:.4f}'.format(train_loss))
             print('Train set : Average Acc : {:.4f}'.format(correct/total))
             print('time ', time.time()-start_time)
             if self.validation:
+                #print("Checked validation")
                 if epoch == 30:
                     for param_group in optimizer.param_groups:
                         tmp = param_group['lr']
@@ -211,42 +247,51 @@ class CNN_train():
                 if epoch == epoch_num:
                     for module in model.children():
                         module.train(False)
+                    #print("CAlling validation")
                     t_loss = self.__test_per_std(model, criterion, gpuID, input, label)
+                    #print("Tloss",t_loss)
+                    sys.stdout.flush()
             else:
-                if epoch == 5:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 10
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
+                flag = 40
+                #if epoch == 5:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 10
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
                 if epoch % 10 == 0:
                     for module in model.children():
                         module.train(False)
-                    t_loss = self.__test_per_std(model, criterion, gpuID, input, label)
-                if epoch == 250:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 0.1
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
-                if epoch == 375:
-                    for param_group in optimizer.param_groups:
-                        tmp = param_group['lr']
-                    tmp *= 0.1
-                    for param_group in optimizer.param_groups:
-                        param_group['lr'] = tmp
+                    t_loss = self.__test_per_std(model, criterion, gpuID, input, label, True)
+                #if epoch == 250:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 0.1
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
+                #if epoch == 375:
+                #    for param_group in optimizer.param_groups:
+                #        tmp = param_group['lr']
+                #    tmp *= 0.1
+                #    for param_group in optimizer.param_groups:
+                #        param_group['lr'] = tmp
         # save the model
-        torch.save(model.state_dict(), './model_%d.pth' % int(gpuID))
+        #torch.save(model.state_dict(), './model_%d.pth' % int(gpuID))
+        torch.save(model.state_dict(), os.path.join('./',str(self.dataset_name)+"_"+str(self.seed),('model_%d.pth' % int(flag))))
         return t_loss
 
     # For validation/test
-    def __test_per_std(self, model, criterion, gpuID, input, label):
+    def __test_per_std(self, model, criterion, gpuID, input, label, verbose=False):
         test_loss = 0
         total = 0
         correct = 0
         ite = 0
-        for _, (data, target) in enumerate(self.test_dataloader):
-            if self.dataset_name == 'mnsit':
+        predicted_labels = []
+        true_labels = []
+        #print("Validation Called", len(self.test_dataloader.dataset))
+        for _index , (data, target) in enumerate(self.test_dataloader):
+            #print("Inside Validation loop")
+            if self.dataset_name == 'mnist' or self.dataset_name == 'fashion' or self.dataset_name == 'emnist' or self.dataset_name == 'devanagari':
                 data = data[:,0:1,:,:]
             data = data.cuda(gpuID)
             target = target.cuda(gpuID)
@@ -255,19 +300,34 @@ class CNN_train():
             label.resize_as_(target).copy_(target)
             label_ = Variable(label)
             try:
+                start_time = time.time()
                 output = model(input_, None)
+                if verbose :
+                    print("Batch index", _index, "time duration",time.time()-start_time) 
             except:
+                #print("Returning 0")
                 import traceback
                 traceback.print_exc()
                 return 0.
             loss = criterion(output, label_)
             test_loss += loss.data[0]
             _, predicted = torch.max(output.data, 1)
+            predicted_labels.extend(predicted.tolist())
+            true_labels.extend(label_.data.tolist())
             total += label_.size(0)
-            correct += predicted.eq(label_.data).cpu().sum()
+            correct += predicted.eq(label_.data).cpu().sum().item()
             ite += 1
+        
+        #print("Reached to the end")
         print('Test set : Average loss: {:.4f}'.format(test_loss))
         print('Test set : (%d/%d)' % (correct, total))
         print('Test set : Average Acc : {:.4f}'.format(correct/total))
-
+        #print("Values", predicted_labels[0:5], true_labels[0:5])
+        if verbose:
+            print("\nSize of predicted labels and true labels", np.shape(predicted_labels), np.shape(true_labels))
+            print("Confusion matrix is :\n")
+            cm = confusion_matrix(true_labels, predicted_labels)
+            for i in range(np.shape(cm)[0]):
+                print(cm[i,:])
+        sys.stdout.flush()
         return (correct/total)
